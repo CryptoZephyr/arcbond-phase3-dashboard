@@ -1,0 +1,69 @@
+name: Render Deploy & Prisma Log Check
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack & install pnpm
+        run: |
+          corepack enable && corepack prepare pnpm@latest --activate
+
+      - name: Install project dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Render CLI
+        run: npm i -g render-cli
+
+      - name: Trigger Render deployment
+        run: |
+          render services deploy $RENDER_SERVICE_ID --api-key $RENDER_API_KEY
+
+      - name: Wait for deployment to finish
+        run: |
+          # Simple poll until the service status is 'live'
+          for i in {1..30}; do
+            STATUS=$(render services get $RENDER_SERVICE_ID --api-key $RENDER_API_KEY --json | jq -r .service.status)
+            echo "Current status: $STATUS"
+            if [ "$STATUS" = "live" ]; then
+              break
+            fi
+            sleep 10
+          done
+
+      - name: Fetch latest Render logs
+        id: logs
+        run: |
+          LOG=$(render services logs $RENDER_SERVICE_ID --api-key $RENDER_API_KEY --tail 500)
+          echo "::set-output name=log::$LOG"
+
+      - name: Check for Prisma engine errors
+        run: |
+          echo "${{ steps.logs.outputs.log }}" | grep -i "prisma" && exit 1 || echo "No Prisma errors found"
+
+      - name: Add GitHub Check (optional)
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { checkRun } = await github.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Render Deploy – Prisma Errors',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: 'failure',
+              output: {
+                title: 'Prisma engine errors detected',
+                summary: 'The Render deployment log contains Prisma errors.'
+              }
+            });

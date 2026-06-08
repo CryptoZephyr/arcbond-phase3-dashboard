@@ -1,0 +1,68 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  walletAddress String        @id
+  ensName       String?
+  registeredAt  Int
+  lastLogin     Int?
+  agents        UserAgent[]
+  transactions  Transaction[]
+}
+
+model UserAgent {
+  reputationEvents ReputationEvent[]
+  id           String  @id @default(uuid())
+  userId       String
+  agentId      String
+  name         String?
+  description  String?
+  isActive     Boolean @default(true)
+  registeredAt Int
+  address      String  @default("")
+  user         User    @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
+}
+
+model Transaction {
+  id          String  @id @default(uuid())
+  userId      String
+  type        String
+  amount      String
+  fromAddress String
+  toAddress   String
+  txHash      String  @unique
+  status      String
+  timestamp   Int
+  sourceChain String?
+  user        User    @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
+}
+
+model ReputationEvent {
+  id        String   @id @default(uuid())
+  agentId   String
+  score     Int
+  reason    String?
+  createdAt Int
+  agent     UserAgent @relation(fields: [agentId], references: [id])
+}
+
+model Job {
+  id               String @id
+  clientAddress    String
+  providerAddress  String
+  evaluatorAddress String
+  description      String
+  budget           String
+  status           String
+  expiredAt        Int
+  txHash           String @unique
+  createdAt        Int
+}
