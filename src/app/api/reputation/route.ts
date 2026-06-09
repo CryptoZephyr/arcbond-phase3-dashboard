@@ -5,17 +5,18 @@ import { db } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
-    const { agentId, delta, reason } = await request.json();
-    if (!agentId || typeof delta !== 'number') {
+    const { agentId, delta, reason, txHash } = await request.json();
+    if (!agentId || typeof delta !== 'number' || !txHash) {
       return NextResponse.json({ success: false, error: 'Invalid payload' }, { status: 400 });
     }
 
     await db.reputationEvent.create({
       data: {
         agentId,
-        score: delta,
-        reason,
-        createdAt: Math.floor(Date.now() / 1000),
+        delta,
+        reason: reason ?? '',
+        timestamp: Math.floor(Date.now() / 1000),
+        txHash,
       },
     });
 

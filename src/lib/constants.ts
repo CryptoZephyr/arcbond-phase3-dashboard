@@ -33,9 +33,10 @@ export const ARC_EXPLORER =
 export const ARC_CHAIN_ID = 5042002;
 
 // Role identifiers (bytes32 hashes) – used with hasRole checks
-export const DEFAULT_ADMIN_ROLE = keccak256(toBytes("DEFAULT_ADMIN_ROLE"));
-export const OPERATOR_ROLE = keccak256(toBytes("OPERATOR_ROLE"));
 export const ARBITRATOR_ROLE = keccak256(toBytes("ARBITRATOR_ROLE"));
+export const OPERATOR_ROLE = keccak256(toBytes("OPERATOR_ROLE"));
+export const DEFAULT_ADMIN_ROLE =
+    "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
 
 export const ARC_USDC_DECIMALS = 18;
 

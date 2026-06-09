@@ -2,8 +2,8 @@
 // Phase 4 - Circle Developer-Controlled Wallets Integration with Robust Polling
 
 import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
-import { createPublicClient, formatUnits, http, parseUnits } from "viem";
-import { arcTestnet } from "@/lib/arc-chain";
+import { formatUnits, parseUnits } from "viem";
+import { publicClient } from "@/lib/viem-client";
 import { ARC_USDC_DECIMALS } from "@/lib/constants";
 
 // Gateway Wallet Contract and Native USDC on Arc Testnet
@@ -12,11 +12,6 @@ const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
 const CIRCLE_WALLET_ADDRESS =
     (process.env.NEXT_PUBLIC_MPC_WALLET_ADDRESS as `0x${string}`) ||
     "0xf2ea8b9ba9a914e9c4441038de30d5685b1c3ee8";
-
-const localPublicClient = createPublicClient({
-    chain: arcTestnet,
-    transport: http(),
-});
 
 const ERC20_ABI = [
     {
@@ -76,7 +71,7 @@ async function waitForTxHash(transactionId: string): Promise<string> {
 }
 
 async function assertCircleWalletBalance(amountWei: bigint) {
-    const balance = await localPublicClient.readContract({
+    const balance = await publicClient.readContract({
         address: USDC_ADDRESS,
         abi: ERC20_ABI,
         functionName: "balanceOf",

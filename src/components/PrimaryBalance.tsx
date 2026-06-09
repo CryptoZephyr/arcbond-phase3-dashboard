@@ -3,59 +3,61 @@
 import { RefreshCw } from "lucide-react";
 
 interface PrimaryBalanceProps {
-    amount: string;
+    // ArcBond protocol ledger balance — usable for bonds/jobs
+    protocolAmount: string;
+    // Raw on-chain wallet USDC balance
+    walletAmount: string;
     loading: boolean;
     error: string | null;
-    lastUpdate?: number;
+    walletLoading?: boolean;
+    walletError?: string | null;
     onRefresh?: () => void;
 }
 
 export function PrimaryBalance({
-    amount,
+    protocolAmount,
+    walletAmount,
     loading,
     error,
-    lastUpdate,
+    walletLoading,
+    walletError,
     onRefresh,
 }: PrimaryBalanceProps) {
-    const getTimeAgo = (timestamp?: number) => {
-        if (!timestamp) return "unknown";
-        const seconds = Math.floor((Date.now() - timestamp) / 1000);
-        if (seconds < 5) return "now";
-        if (seconds < 60) return `${seconds}s ago`;
-        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-        return `${Math.floor(seconds / 3600)}h ago`;
-    };
-
     return (
         <div className="surface-panel">
             <div className="flex items-end justify-between">
                 <div>
-                    <p className="eyebrow mb-2">Your Arc Balance</p>
+                    <p className="eyebrow mb-2">Protocol Balance</p>
                     {loading ? (
                         <div className="mb-2">
                             <div className="inline-block h-10 w-32 animate-pulse rounded bg-slate-200" />
                         </div>
                     ) : error ? (
-                        <div className="text-sm font-semibold text-red-600">
-                            Failed to load balance
-                        </div>
+                        <div className="text-sm font-semibold text-red-600">Failed to load balance</div>
                     ) : (
                         <h2 className="text-4xl font-extrabold text-slate-950">
-                            ${amount}{" "}
+                            ${protocolAmount}{" "}
                             <span className="text-lg font-semibold text-slate-400">USDC</span>
                         </h2>
                     )}
                     <p className="mt-1 text-xs font-medium text-slate-500">
-                        {loading ? (
-                            "Updating..."
-                        ) : error ? (
-                            <span className="text-red-600">{error}</span>
-                        ) : (
-                            <>
-                                ✓ Synced {getTimeAgo(lastUpdate)}
-                            </>
-                        )}
+                        Usable for bonds &amp; jobs (ArcBond ledger)
                     </p>
+
+                    <div className="mt-3 border-t border-slate-100 pt-3">
+                        <p className="eyebrow mb-1">Wallet Balance</p>
+                        {walletLoading ? (
+                            <div className="inline-block h-5 w-24 animate-pulse rounded bg-slate-200" />
+                        ) : walletError ? (
+                            <span className="text-sm font-semibold text-red-600">Failed to load</span>
+                        ) : (
+                            <p className="text-lg font-bold text-slate-700">
+                                ${walletAmount}{" "}
+                                <span className="text-xs font-semibold text-slate-400">USDC</span>
+                            </p>
+                        )}
+                        <p className="mt-0.5 text-xs font-medium text-slate-500">Raw on-chain USDC</p>
+                    </div>
                 </div>
                 {onRefresh && (
                     <button

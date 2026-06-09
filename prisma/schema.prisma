@@ -1,8 +1,7 @@
 // prisma/schema.prisma
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
 }
 
 generator client {
@@ -19,7 +18,6 @@ model User {
 }
 
 model UserAgent {
-  reputationEvents ReputationEvent[]
   id           String  @id @default(uuid())
   userId       String
   agentId      String
@@ -46,12 +44,12 @@ model Transaction {
 }
 
 model ReputationEvent {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   agentId   String
-  score     Int
-  reason    String?
-  createdAt Int
-  agent     UserAgent @relation(fields: [agentId], references: [id])
+  delta     Int
+  reason    String
+  timestamp Int
+  txHash    String @unique
 }
 
 model Job {
@@ -65,4 +63,21 @@ model Job {
   expiredAt        Int
   txHash           String @unique
   createdAt        Int
+  bondId           String?
 }
+
+model Bond {
+  id                  String @id
+  initiatorAddress    String
+  counterpartyAddress String
+  initiatorAgentId    String
+  counterpartyAgentId String
+  collateral          String
+  initiatorSplit      Int
+  counterpartySplit   Int
+  status              Int
+  createdAt           Int
+  txHash              String @unique
+}
+
+

@@ -1,0 +1,50 @@
+ΓÜá Invalid next.config.ts options detected: 
+ΓÜá     Unrecognized key(s) in object: 'turbo' at "experimental"
+ΓÜá See more info here: https://nextjs.org/docs/messages/invalid-next-config
+Γû▓ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  ? turbo (invalid experimental key)
+
+  Creating an optimized production build ...
+Turbopack build encountered 1 warnings:
+./postcss.config.mjs
+Specified module format (EcmaScript Modules) is not matching the module format of the source code (CommonJs)
+The EcmaScript module format was specified in the package.json that is affecting this source file or by using an special extension, but it looks like that CommonJs syntax is used in the source code.
+Exports made by CommonJs syntax will lead to a runtime error, since the module is in EcmaScript mode. Either change the "type" field in the package.json or replace CommonJs syntax with EcmaScript import/export syntax in the source file.
+
+
+
+> Build error occurred
+Error: Turbopack build failed with 2 errors:
+./app/globals.css
+Error evaluating Node.js code
+Error: PostCSS config is undefined (make sure to export an function or object from config file)
+    at Module.init (turbopack:///[turbopack-node]/transforms/postcss.ts:23:11) [C:\Users\HomePC\arcbond-phase3-dashboard\.next\build\chunks\[root-of-the-server]__0d-m0h0._.js:105:15]
+    at init (turbopack:///[turbopack-node]/child_process/evaluate.ts:74:20) [C:\Users\HomePC\arcbond-phase3-dashboard\.next\build\chunks\[root-of-the-server]__0ubbtyl._.js:429:26]
+    [at process.processTicksAndRejections (node:internal/process/task_queues:104:5)]
+
+Import trace:
+  Client Component Browser:
+    ./app/globals.css [Client Component Browser]
+    ./app/layout.tsx [Server Component]
+
+
+[turbopack-node]/transforms/postcss.ts:12:1
+Export default doesn't exist in target module
+  10 | import postcss from '@vercel/turbopack/postcss'
+  11 | // @ts-ignore
+> 12 | import importedConfig from 'CONFIG'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  13 | import { getReadEnvVariables, toPath, type TransformIpc } from './transforms'
+  14 |
+  15 | let processor: Processor | undefined
+
+The export default was not found in module [project]/postcss.config.mjs [postcss] (ecmascript).
+The module has no exports at all.
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+
+    at Module.init (turbopack:///[turbopack-node]/transforms/postcss.ts:23:11) [C:\Users\HomePC\arcbond-phase3-dashboard\.next\build\chunks\[root-of-the-server]__0d-m0h0._.js:105:15])
+    at init (turbopack:///[turbopack-node]/child_process/evaluate.ts:74:20) [C:\Users\HomePC\arcbond-phase3-dashboard\.next\build\chunks\[root-of-the-server]__0ubbtyl._.js:429:26])
+    at <unknown> ([turbopack-node]/transforms/postcss.ts:12:1)

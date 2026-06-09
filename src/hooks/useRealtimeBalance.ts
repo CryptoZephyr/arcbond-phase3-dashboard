@@ -2,17 +2,10 @@
 // Hook to query and poll the native USDC balance of any wallet on Arc Testnet
 
 import { useEffect, useState, useRef } from "react";
-import { createPublicClient, http, formatUnits } from "viem";
-import { arcTestnet } from "@/lib/arc-chain";
+import { publicClient } from "@/lib/viem-client";
 import { BALANCE_POLL_INTERVAL_MS, formatUsdcFromBigInt, ARC_USDC_DECIMALS } from "@/lib/constants";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
-
-// Self-contained public client to read from Arc Testnet RPC
-const localPublicClient = createPublicClient({
-    chain: arcTestnet,
-    transport: http(),
-});
 
 export function useRealtimeBalance(walletAddress: string, refreshInterval = BALANCE_POLL_INTERVAL_MS) {
     const [balance, setBalance] = useState<string>("0.00");
@@ -43,7 +36,7 @@ export function useRealtimeBalance(walletAddress: string, refreshInterval = BALA
             try {
                 setError(null);
                 // Read balance from Arc native USDC contract
-                const balanceRaw = await localPublicClient.readContract({
+                const balanceRaw = await publicClient.readContract({
                     address: USDC_ADDRESS,
                     abi: [
                         {

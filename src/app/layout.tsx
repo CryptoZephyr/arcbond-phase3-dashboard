@@ -4,6 +4,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "@/app/providers";
 
 const sansFont = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -30,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sansFont.variable} ${monoFont.variable}`}>
       <body className="font-sans antialiased selection:bg-teal-200 selection:text-slate-950">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -2,17 +2,11 @@
 // Hook to query and poll the connected MetaMask wallet's native USDC balance
 
 import { useEffect, useState, useRef } from "react";
-import { createPublicClient, http } from "viem";
-import { arcTestnet } from "@/lib/arc-chain";
+import { publicClient } from "@/lib/viem-client";
 import { BALANCE_POLL_INTERVAL_MS, formatUsdcFromBigInt } from "@/lib/constants";
 
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
 const ARC_USDC_DECIMALS = 18;
-
-const localPublicClient = createPublicClient({
-    chain: arcTestnet,
-    transport: http(),
-});
 
 export function useMetaMaskBalance(walletAddress: string, refreshInterval = BALANCE_POLL_INTERVAL_MS) {
     const [balance, setBalance] = useState<string>("0.00");
@@ -41,7 +35,7 @@ export function useMetaMaskBalance(walletAddress: string, refreshInterval = BALA
 
             try {
                 setError(null);
-                const balanceRaw = await localPublicClient.readContract({
+                const balanceRaw = await publicClient.readContract({
                     address: USDC_ADDRESS,
                     abi: [
                         {

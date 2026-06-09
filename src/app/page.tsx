@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect } from "react";
 import {
   LineChart,
   Wallet,
@@ -19,15 +19,10 @@ import {
   Link2,
   Shield
 } from "lucide-react";
-import { useAccount, useReadContract } from 'wagmi';
-import { DEFAULT_ADMIN_ROLE, OPERATOR_ROLE } from '@/lib/constants';
-import { useRealtimeBalance } from "@/hooks/useRealtimeBalance";
+import { useWallet } from "@/context/WalletContext";
+import { useProtocolData } from "@/hooks/useProtocolData";
 import { useMetaMaskBalance } from "@/hooks/useMetaMaskBalance";
-import { useArcBondData } from "@/hooks/useArcBondData";
-import { useArcBondEvents } from "@/hooks/useArcBondEvents";
 import { Header } from "@/components/Header";
-import { CreateBondModal } from "@/components/CreateBondModal";
-import { MyBonds } from "@/components/MyBonds";
 import { PrimaryBalance } from "@/components/PrimaryBalance";
 import { AgentCard } from "@/components/AgentCard";
 import { BondTimeline } from "@/components/BondTimeline";
@@ -39,345 +34,64 @@ import { JobsMarketplace } from "@/components/JobsMarketplace";
 import { UserProfileView } from "@/components/UserProfileView";
 import { AccountPortfolioView } from "@/components/AccountPortfolioView";
 import { AdminPanel } from "@/components/AdminPanel";
-import { AppKit } from "@circle-fin/app-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { createWalletClient, custom, parseUnits } from "viem";
 import { arcTestnet } from "@/lib/arc-chain";
 import { ARCBOND_ABI } from "@/lib/arcbond-abi";
-import { BALANCE_POLL_INTERVAL_MS, ARC_CHAIN_ID, ARCBOND_ADDRESS, ARC_USDC_DECIMALS } from "@/lib/constants";
-import { debounce } from "@/lib/debounce";
-
-interface ProtocolStats {
-  totalVolume: string;
-  protocolFees: string;
-  pendingSettlements: string;
-}
-
-interface TransactionRecord {
-  id: string;
-  type: string;
-  amount: string;
-  fromAddress: string;
-  toAddress: string;
-  txHash: string;
-  status: string;
-  timestamp: number;
-  sourceChain?: string | null;
-}
-
-interface UserAgentRecord {
-  id: string;
-  agentId: string;
-  name: string;
-  description: string;
-  isActive: boolean;
-  registeredAt: number;
-  address: string;
-  ledgerBalance: bigint;
-  boundAgentId: bigint;
-}
-
-interface EscrowJobRecord {
-  id: string;
-  clientAddress: string;
-  providerAddress: string;
-  evaluatorAddress: string;
-  description: string;
-  budget: string;
-  status: string;
-  expiredAt: number;
-  txHash: string;
-  createdAt: number;
-}
+import { BALANCE_POLL_INTERVAL_MS, ARCBOND_ADDRESS, ARC_USDC_DECIMALS } from "@/lib/constants";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("Analytics");
-  const [activeWalletTab, setActiveWalletTab] = useState("Payment Wallets");
   const [operationAmount, setOperationAmount] = useState("");
 
   const [bridgeSourceChain, setBridgeSourceChain] = useState<"Base_Sepolia" | "Arbitrum_Sepolia">("Base_Sepolia");
   const [bridgeAmount, setBridgeAmount] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [networkStatus, setNetworkStatus] = useState<"synced" | "syncing" | "error">("syncing");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [userAddress, setUserAddress] = useState<string>("");
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
-  const [stats, setStats] = useState<ProtocolStats>({
-    totalVolume: "0.00",
-    protocolFees: "0.00",
-    pendingSettlements: "0.00",
-  });
-
   const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
-  const [userAgents, setUserAgents] = useState<UserAgentRecord[]>([]);
-
   const [isCreateJobOpen, setIsCreateJobOpen] = useState(false);
-  const [jobs, setJobs] = useState<EscrowJobRecord[]>([]);
-  const [selectedJobId, setSelectedJobId] = useState<bigint | undefined>(undefined);
-  const [selectedBondId, setSelectedBondId] = useState<bigint | undefined>(undefined);
 
-  const { address: connectedWalletAddress } = useAccount();
-  const [hasAdminRole, setHasAdminRole] = useState(false);
+  const { userAddress, networkStatus, connectWallet, setNetworkError } = useWallet();
 
-  const { data: isAdminRole } = useReadContract({
-    address: ARCBOND_ADDRESS,
-    abi: ARCBOND_ABI,
-    functionName: 'hasRole',
-    args: [DEFAULT_ADMIN_ROLE, userAddress as `0x${string}`],
-    query: { enabled: !!userAddress },
-  });
-
-  const { data: isOperatorRole } = useReadContract({
-    address: ARCBOND_ADDRESS,
-    abi: ARCBOND_ABI,
-    functionName: 'hasRole',
-    args: [OPERATOR_ROLE, userAddress as `0x${string}`],
-    query: { enabled: !!userAddress },
-  });
-
-  useEffect(() => {
-    setHasAdminRole(!!isAdminRole || !!isOperatorRole);
-  }, [isAdminRole, isOperatorRole]);
+  const {
+    transactions,
+    userAgents,
+    jobs,
+    stats,
+    selectedJobId,
+    selectedBondId,
+    arcBondState,
+    arcBondError,
+    wsConnected,
+    hasAdminRole,
+    protocolBalance,
+    fetchUserAgents,
+    fetchJobs,
+    fetchUserTransactions,
+    fetchProtocolStats,
+  } = useProtocolData(userAddress);
 
   const mpcWalletAddress = process.env.NEXT_PUBLIC_MPC_WALLET_ADDRESS || "0xf2ea8b9ba9a914e9c4441038de30d5685b1c3ee8";
 
-  const { state: arcBondState, error: arcBondError } = useArcBondData(selectedBondId, selectedJobId);
-
-  const { balance: nativeBalance, loading: balanceLoading, error: nativeError, lastUpdate: balanceUpdateTime } = useRealtimeBalance(mpcWalletAddress, BALANCE_POLL_INTERVAL_MS);
-  const { balance: metaMaskBalance, loading: metaMaskBalanceLoading, error: metaMaskError } = useMetaMaskBalance(userAddress, BALANCE_POLL_INTERVAL_MS);
-
-  // Debounce registerUserSession to prevent duplicate posts on rapid address changes
-  const debouncedRegisterRef = useRef<ReturnType<typeof debounce> | null>(null);
-
-  const registerUserSession = async (address: string) => {
-    try {
-      await fetch("/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress: address }),
-      });
-    } catch (err) {
-      console.error("Failed to register session:", err);
-    }
-  };
-
-  const fetchUserAgents = async () => {
-    if (!userAddress) return;
-    try {
-      const response = await fetch(`/api/user?userId=${userAddress}&type=agents`);
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setUserAgents(data.agents);
-      }
-    } catch (err) {
-      console.error("Failed to fetch user agents:", err);
-    }
-  };
-
-  const fetchJobs = async () => {
-    if (!userAddress) return;
-    try {
-      const response = await fetch(`/api/user?userId=${userAddress}&type=jobs`);
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setJobs(data.jobs);
-      }
-    } catch (err) {
-      console.error("Failed to fetch jobs:", err);
-    }
-  };
-
-  const fetchUserTransactions = async () => {
-    if (!userAddress) return;
-    try {
-      const response = await fetch(`/api/transactions?userId=${userAddress}`);
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setTransactions(data.transactions);
-      }
-    } catch (err) {
-      console.error("Failed to fetch user transactions:", err);
-    }
-  };
-
-  const fetchProtocolStats = async () => {
-    try {
-      const response = await fetch("/api/protocol/stats");
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setStats(data.stats);
-      }
-    } catch (err) {
-      console.error("Failed to fetch protocol stats:", err);
-    }
-  };
-
-  useEffect(() => {
-    // Initialize debounced registerUserSession on first render
-    if (!debouncedRegisterRef.current) {
-      debouncedRegisterRef.current = debounce((address: string) => {
-        registerUserSession(address);
-      }, 300);
-    }
-  }, []);
-  useEffect(() => {
-    if (!jobs.length) {
-      setSelectedJobId(undefined);
-      return;
-    }
-
-    const maxOnChainJobId = arcBondState?.jobCount ?? BigInt(0);
-    const validJobIds = jobs
-      .map((job) => {
-        try {
-          return BigInt(job.id);
-        } catch {
-          return null;
-        }
-      })
-      .filter((id): id is bigint => id !== null && id > BigInt(0) && id <= maxOnChainJobId);
-
-    if (!validJobIds.length) {
-      setSelectedJobId(undefined);
-      return;
-    }
-
-    const selectedExists = selectedJobId
-      ? validJobIds.some((id) => id === selectedJobId)
-      : false;
-
-    if (!selectedExists) {
-      setSelectedJobId(validJobIds[0]);
-    }
-  }, [jobs, selectedJobId, arcBondState?.jobCount]);
-
-  useEffect(() => {
-    if (selectedBondId === undefined && arcBondState?.bondCount && arcBondState.bondCount > BigInt(0)) {
-      setSelectedBondId(arcBondState.bondCount);
-    }
-  }, [arcBondState?.bondCount, selectedBondId]);
-
-  // Connect to WebSocket for real‑time events
-  const { wsConnected, latestEvent } = useArcBondEvents();
-
-  // Initial fetch and fallback polling (15000 ms) for protocol stats
-  useEffect(() => {
-    fetchProtocolStats();
-    const interval = setInterval(fetchProtocolStats, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // React to incoming WS events and trigger specific refetches
-  useEffect(() => {
-    if (!latestEvent) return;
-    const { type } = latestEvent;
-    // Bond lifecycle events
-    if (["BondCreated","BondApproved","BondSlashed","BondReleased"].includes(type)) {
-      fetchProtocolStats();
-    }
-    // Balance‑related events
-    if (["Deposited","Withdrawn"].includes(type)) {
-      fetchUserTransactions();
-      fetchProtocolStats();
-    }
-    // Agent events
-    if (type === "AgentIdBound") {
-      fetchUserAgents();
-    }
-    // Job events — names match exact ArcBond contract event names
-    if (["JobCreated","JobFunded","JobApproved","DeliverableSubmitted","JobCompleted","JobRejected","JobArbitrated","JobExpired"].includes(type)) {
-      fetchJobs();
-      fetchProtocolStats();
-    }
-  }, [latestEvent]);
-
-  useEffect(() => {
-    if (!userAddress) {
-      setTransactions([]);
-      setUserAgents([]);
-      setJobs([]);
-      return;
-    }
-
-    fetchUserTransactions();
-    fetchUserAgents();
-    fetchJobs();
-
-    const interval = setInterval(() => {
-      fetchUserTransactions();
-      fetchUserAgents();
-      fetchJobs();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [userAddress]);
-
-  const checkChainId = async () => {
-    if (typeof window !== "undefined" && (window as any).ethereum) {
-      try {
-        const chainIdHex = await (window as any).ethereum.request({
-          method: "eth_chainId",
-        });
-        const chainId = parseInt(chainIdHex, 16);
-        if (chainId === ARC_CHAIN_ID) {
-          setNetworkStatus("synced");
-        } else {
-          setNetworkStatus("error");
-        }
-      } catch (err) {
-        console.error("Failed to check chain ID:", err);
-        setNetworkStatus("error");
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).ethereum) {
-      const handleChainChanged = (chainIdHex: string) => {
-        const chainId = parseInt(chainIdHex, 16);
-        if (chainId === ARC_CHAIN_ID) {
-          setNetworkStatus("synced");
-        } else {
-          setNetworkStatus("error");
-        }
-      };
-
-      (window as any).ethereum.on("chainChanged", handleChainChanged);
-
-      // Perform initial check
-      checkChainId();
-
-      return () => {
-        if ((window as any).ethereum.removeListener) {
-          (window as any).ethereum.removeListener("chainChanged", handleChainChanged);
-        }
-      };
-    }
-  }, [userAddress]);
+  const {
+    balance: metaMaskBalance,
+    loading: metaMaskBalanceLoading,
+    error: metaMaskError,
+  } = useMetaMaskBalance(userAddress, BALANCE_POLL_INTERVAL_MS);
 
   useEffect(() => {
     if (arcBondError) {
-      setNetworkStatus("error");
+      setNetworkError();
     }
-  }, [arcBondError]);
+  }, [arcBondError, setNetworkError]);
 
-  const connectWallet = async () => {
-    if (typeof window !== "undefined" && (window as any).ethereum) {
-      try {
-        const accounts = await (window as any).ethereum.request({
-          method: "eth_requestAccounts",
-        });
-        setUserAddress(accounts[0]);
-        registerUserSession(accounts[0]);
-        await checkChainId();
-      } catch (err) {
-        console.error("User rejected wallet connection:", err);
-      }
-    } else {
-      setError("MetaMask extension not found. Please install MetaMask to connect.");
+  const handleConnect = async () => {
+    try {
+      await connectWallet();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to connect wallet.");
     }
   };
 
@@ -396,6 +110,13 @@ export default function Home() {
     setSuccess(null);
 
     try {
+      // Lazy-load the heavy Circle SDKs only when a bridge is actually initiated,
+      // keeping them out of the initial client bundle.
+      const [{ AppKit }, { createViemAdapterFromProvider }] = await Promise.all([
+        import("@circle-fin/app-kit"),
+        import("@circle-fin/adapter-viem-v2"),
+      ]);
+
       const adapter = await createViemAdapterFromProvider({
         provider: (window as any).ethereum,
         capabilities: { addressContext: "user-controlled" }
@@ -534,7 +255,7 @@ export default function Home() {
 
   return (
     <>
-      <Header userAddress={userAddress} networkStatus={networkStatus} wsConnected={wsConnected} onConnect={connectWallet} />
+      <Header userAddress={userAddress} networkStatus={networkStatus} wsConnected={wsConnected} onConnect={handleConnect} />
       <div className="app-shell">
         <div className="app-frame">
 
@@ -588,10 +309,12 @@ export default function Home() {
               <>
                 {/* PRIMARY BALANCE DISPLAY */}
                 <PrimaryBalance
-                  amount={nativeBalance}
-                  loading={balanceLoading}
-                  error={nativeError}
-                  lastUpdate={balanceUpdateTime}
+                  protocolAmount={protocolBalance}
+                  walletAmount={metaMaskBalance}
+                  loading={false}
+                  error={null}
+                  walletLoading={metaMaskBalanceLoading}
+                  walletError={metaMaskError}
                 />
 
                 {/* QUICK ACTIONS */}
@@ -860,7 +583,3 @@ export default function Home() {
     </>
   );
 }
-
-
-
-

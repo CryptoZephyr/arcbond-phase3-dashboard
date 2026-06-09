@@ -1,0 +1,16 @@
+
+> arcbond-phase3-dashboard@0.1.0 dev
+> next dev
+
+Γû▓ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.9.61:3000
+- Environments: .env.local
+Γ£ô Ready in 5.8s
+ΓÜá Invalid next.config.ts options detected: 
+ΓÜá     Unrecognized key(s) in object: 'turbo' at "experimental"
+ΓÜá See more info here: https://nextjs.org/docs/messages/invalid-next-config
+- Experiments (use with caution):
+  ? turbo (invalid experimental key)
+
+Γùï Compiling / ...
